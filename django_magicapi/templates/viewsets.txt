@@ -7,7 +7,7 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
 from django.core.cache import cache
 from ..models import {{ model_name }}
-from ..serializers import (
+from ..serializers.{{ model_name|lower }}_serializers import (
     {{ model_list_serializers }},
     {{ model_retrieve_serializers }},
     {{ model_write_serializers }}
@@ -18,32 +18,27 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class {{ viewset_name }}(viewsets.ModelViewSet):
-    """
-    ViewSet for {{ model_name }}.
-    
-    Provides CRUD operations with:
-    - Custom pagination (page/size or limit/offset)
-    - {{ app_name }}Permission (configurable permissions)
-    - Filtering, searching, ordering
-    - Different serializers for list, retrieve, and write actions
-    """
-    queryset = {{ model_name }}.objects.all()
+    queryset = {{ model_name }}.objects.all().order_by('-id')
     serializer_class = {{ model_list_serializers }}
     pagination_class = MyPageNumberPagination
     permission_classes = [{{ app_name }}Permission]
     authentication_classes = [JWTAuthentication]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = '__all__'
-    search_fields = []   # ← add fields like ['name', 'description']
+    search_fields = []
     ordering_fields = '__all__'
 
     def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
         if self.action == 'list':
             return {{ model_list_serializers }}
         if self.action == 'retrieve':
             return {{ model_retrieve_serializers }}
         return {{ model_write_serializers }}
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset
+
 
     # ----------------------------------------------------------------------
     # OPTIONAL: Custom actions using @action decorator (uncomment to use)
@@ -61,14 +56,7 @@ class {{ viewset_name }}(viewsets.ModelViewSet):
     #     serializer = self.get_serializer(queryset, many=True)
     #     return Response(serializer.data)
 
-    # ----------------------------------------------------------------------
-    # OPTIONAL: Override queryset per action (uncomment to customise)
-    # ----------------------------------------------------------------------
-    # def get_queryset(self):
-    #     if self.action == 'list':
-    #         return {{ model_name }}.objects.filter(is_active=True)
-    #     return super().get_queryset()
-
+ 
     # ----------------------------------------------------------------------
     # OPTIONAL: Caching examples (uncomment to enable)
     # ----------------------------------------------------------------------

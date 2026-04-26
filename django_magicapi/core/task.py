@@ -1,4 +1,4 @@
-# GenerationTask (was BaseTask)
+# task.py
 import warnings
 from django.apps import apps
 from .helper import FileWriter
@@ -12,11 +12,10 @@ class GenerationTask:
         self.app_name = app_name
         self.type = task_type
         self.force = force
-        self.models = self._get_valid_models()  # only models with fields
+        self.models = self._get_valid_models()
 
     def run(self):
-        """Execute the generation based on the task type."""
-        # App‑level tasks (generate once)
+        # App‑level tasks (single file)
         if self.type in ('permissions', 'pagination', 'importbase'):
             writer = FileWriter(self.app_name, self.type, force=self.force)
             writer.write()
@@ -28,7 +27,22 @@ class GenerationTask:
             writer.write()
             return
 
-        # Per‑model tasks: serializers, viewsets
+        # Admin registration – per model, appends to admin.py
+        if self.type == 'admin':
+            if not self.models:
+                warnings.warn(f"No models with fields in app '{self.app_name}'. Skipping admin registration.")
+                return
+            for model in self.models:
+                writer = FileWriter(
+                    self.app_name,
+                    'admin',
+                    model_name=model.__name__,
+                    force=self.force
+                )
+                writer.write()
+            return
+
+        # Per‑model tasks: serializers, viewsets (placed in subfolders)
         if self.type in ('serializers', 'viewsets'):
             if not self.models:
                 warnings.warn(f"No models with fields in app '{self.app_name}'. Skipping '{self.type}'.")
@@ -38,6 +52,7 @@ class GenerationTask:
                     self.app_name,
                     self.type,
                     model_name=model.__name__,
+                    subfolder=self.type,
                     force=self.force
                 )
                 writer.write()
@@ -47,7 +62,6 @@ class GenerationTask:
         warnings.warn(f"Unknown task type '{self.type}' – skipping.")
 
     def _get_valid_models(self):
-        """Return models that have at least one field."""
         try:
             app_config = apps.get_app_config(self.app_name)
         except LookupError:

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
-from django_magicapi.core.generator import ApiGenerator
-from django_magicapi.core.utils import get_custom_apps
+from blog.django_magicapi.core.generator import ApiGenerator
+from blog.django_magicapi.core.utils import get_custom_apps
 
 class Command(BaseCommand):
     help = "Remove all auto‑generated API files and router registrations"

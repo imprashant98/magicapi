@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
 
-# Read the long description from README.md (optional but recommended)
 try:
     with open("README.md", "r", encoding="utf-8") as fh:
         long_description = fh.read()
@@ -15,11 +14,15 @@ setup(
     description='Automatically generate DRF API components for Django apps',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/imprashant98/django-magicapi',
+    url='https://github.com/imprashant98/magicapi',
+    project_urls={
+        'Bug Reports': 'https://github.com/imprashant98/magicapi/issues',
+        'Source': 'https://github.com/imprashant98/magicapi',
+    },
+    license='MIT',
     packages=find_packages(),
-    include_package_data=True,   # Uses MANIFEST.in or package_data to include templates
+    include_package_data=True,
     package_data={
-        # Explicitly include all .txt files in the templates folder
         'django_magicapi': ['templates/*.txt'],
     },
     install_requires=[
@@ -28,6 +31,9 @@ setup(
         'django-filter>=2.4',
         'djangorestframework-simplejwt>=5.0',
     ],
+    extras_require={
+        'swagger': ['drf-yasg>=1.20.0'],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Framework :: Django',
@@ -45,9 +51,6 @@ setup(
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
     ],
+    keywords='django drf api generator rest framework magicapi',
     python_requires='>=3.8',
-    project_urls={
-        'Bug Reports': 'https://github.com/imprashant98/django-magicapi/issues',
-        'Source': 'https://github.com/imprashant98/django-magicapi',
-    },
 )
