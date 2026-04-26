@@ -132,7 +132,7 @@ class ApiGenerator:
                     print(f"Removed: {pyc_path}")
 
     def unregister(self):
-        """Remove this app's router from the aggregated URL configuration."""
+        self.url_manager.load_existing()
         self.url_manager.remove_router(self.app_name)
         self.url_manager.write()
 
@@ -142,6 +142,7 @@ class ApiGenerator:
             task_obj.run()
 
     def _register_router(self):
-        """Add this app's router to the aggregated URL configuration."""
+        self.url_manager.load_existing()
         self.url_manager.add_router(self.app_name)
         self.url_manager.write()
+
