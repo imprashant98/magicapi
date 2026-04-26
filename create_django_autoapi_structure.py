@@ -55,4 +55,4 @@ def create_structure(base_path, struct):
 if __name__ == "__main__":
     # Create the structure in the current working directory
     create_structure(".", STRUCTURE)
-    print("\n✅ django_autoapi folder structure created successfully.")
+    print("\n django_autoapi folder structure created successfully.")
