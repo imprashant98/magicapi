@@ -1,0 +1,10 @@
+# Router registration template
+from rest_framework.routers import DefaultRouter
+{% for model in models %}
+from ..viewsets import {{ model.name }}ViewSet
+{% endfor %}
+
+router = DefaultRouter()
+{% for model in models %}
+router.register(r'{{ model.endpoint }}', {{ model.name }}ViewSet, basename='{{ model.name|lower }}')
+{% endfor %}

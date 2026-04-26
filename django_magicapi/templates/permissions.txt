@@ -1,0 +1,170 @@
+# DjangoRestFramework permissions template
+"""
+Advanced permission classes for {{ app_name }}.
+
+This file provides:
+- A configurable object‑level owner permission (works with any "owner" field name)
+- Integration with Django's standard `django.contrib.auth` permissions
+- Optional role‑based permission levels via a custom User method
+- All permissions are composable and can be mixed into your viewset
+
+To use:
+1. Set `OWNER_FIELD` below to the field name on your model that stores the owner (default 'user').
+2. If you want role‑based levels, define a method `get_permission_level()` on your User model
+   that returns one of: 'admin', 'editor', 'viewer' (or whatever you need).
+3. In your viewset, set `permission_classes = [{{ app_name }}ModelPermissions]`
+"""
+
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+
+# ----------------------------------------------------------------------
+# Configuration – adjust these to match your project
+# ----------------------------------------------------------------------
+OWNER_FIELD = 'user'                     # field name that links to the owner (User)
+USE_ROLES = False                        # set True if you have user.role or user.get_permission_level()
+ROLE_ADMIN_LEVEL = ['admin', 'superuser']  # roles that can do anything
+ROLE_EDITOR_LEVEL = ['editor']           # roles that can modify but not delete
+ROLE_VIEWER_LEVEL = ['viewer']           # roles that can only view
+
+# ----------------------------------------------------------------------
+# Helper functions (safe to use in any permission class)
+# ----------------------------------------------------------------------
+def is_authenticated(request):
+    return bool(request.user and request.user.is_authenticated)
+
+def is_safe_method(request):
+    """GET, HEAD, OPTIONS are always safe."""
+    return request.method in SAFE_METHODS
+
+def is_owner(request, obj, owner_field=OWNER_FIELD):
+    """Check if the request user is the owner of the object."""
+    if not obj or not is_authenticated(request):
+        return False
+    owner = getattr(obj, owner_field, None)
+    if owner and hasattr(owner, 'id'):
+        return request.user.id == owner.id
+    return False
+
+def has_role(request, allowed_roles):
+    """Check if the user has one of the allowed roles (requires USE_ROLES=True)."""
+    if not USE_ROLES or not is_authenticated(request):
+        return False
+    # You can customise this to read from request.user.role or a method
+    if hasattr(request.user, 'get_permission_level'):
+        user_role = request.user.get_permission_level()
+        return user_role in allowed_roles
+    elif hasattr(request.user, 'role'):
+        return request.user.role in allowed_roles
+    # Fallback: is_superuser counts as admin
+    return request.user.is_superuser and 'admin' in allowed_roles
+
+# ----------------------------------------------------------------------
+# Model permissions using Django's built‑in system (recommended)
+# ----------------------------------------------------------------------
+class {{ app_name }}DjangoModelPermissions(BasePermission):
+    """
+    Uses Django's standard 'app_label.view_model', 'add_model', etc.
+    Requires that you have defined these permissions in your model's Meta.
+    """
+    def has_permission(self, request, view):
+        if not is_authenticated(request):
+            return False
+        # Safely get the model from the view's queryset
+        model_cls = getattr(view, 'queryset', None)
+        if model_cls is not None:
+            model_cls = model_cls.model
+        elif hasattr(view, 'serializer_class') and hasattr(view.serializer_class, 'Meta'):
+            model_cls = view.serializer_class.Meta.model
+        else:
+            return True   # fallback
+
+        perms_map = {
+            'GET': ['%(app_label)s.view_%(model_name)s'],
+            'OPTIONS': [],
+            'HEAD': [],
+            'POST': ['%(app_label)s.add_%(model_name)s'],
+            'PUT': ['%(app_label)s.change_%(model_name)s'],
+            'PATCH': ['%(app_label)s.change_%(model_name)s'],
+            'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+        }
+        required_perms = perms_map.get(request.method, [])
+        if not required_perms:
+            return True
+
+        # Replace placeholders
+        perms = [
+            perm % {'app_label': model_cls._meta.app_label,
+                    'model_name': model_cls._meta.model_name}
+            for perm in required_perms
+        ]
+        return request.user.has_perms(perms)
+
+    def has_object_permission(self, request, view, obj):
+        # For object permissions, also check ownership or role overrides
+        if is_safe_method(request):
+            return True
+        # Allow admins to do anything
+        if USE_ROLES and has_role(request, ROLE_ADMIN_LEVEL):
+            return True
+        # Allow owners to modify their own objects (change, but not delete? adjust as needed)
+        if is_owner(request, obj):
+            if request.method in ['PUT', 'PATCH']:
+                return True
+            if request.method == 'DELETE' and USE_ROLES and has_role(request, ROLE_EDITOR_LEVEL):
+                return True
+        # Otherwise fall back to Django permissions
+        return self.has_permission(request, view)
+
+# ----------------------------------------------------------------------
+# Lightweight owner‑only permission (no Django perms)
+# ----------------------------------------------------------------------
+class {{ app_name }}OwnerOnlyPermission(BasePermission):
+    """
+    Only the owner of an object may view or modify it.
+    For list/create operations, only authenticated users are allowed.
+    """
+    def has_permission(self, request, view):
+        # List and create require authentication, no further object check
+        return is_authenticated(request)
+
+    def has_object_permission(self, request, view, obj):
+        if is_safe_method(request):
+            return is_owner(request, obj)
+        # Modify/delete only owner
+        return is_owner(request, obj)
+
+# ----------------------------------------------------------------------
+# Role‑based permission (no object ownership, just global roles)
+# ----------------------------------------------------------------------
+class {{ app_name }}RolePermission(BasePermission):
+    """Global permission based on user role (no object level)."""
+    def has_permission(self, request, view):
+        if not is_authenticated(request):
+            return False
+        if is_safe_method(request):
+            # Anyone authenticated can view
+            return True
+        # Write operations require editor or admin role
+        return has_role(request, ROLE_EDITOR_LEVEL + ROLE_ADMIN_LEVEL)
+
+# ----------------------------------------------------------------------
+# Default permission class – mix of Django perms + owner fallback
+# ----------------------------------------------------------------------
+class {{ app_name }}DefaultPermission({{ app_name }}DjangoModelPermissions):
+    """
+    Use Django model permissions, but also allow object owners to edit their own items
+    even if they don't have the 'change' permission globally.
+    """
+    def has_object_permission(self, request, view, obj):
+        # First, check Django permissions
+        if super().has_object_permission(request, view, obj):
+            return True
+        # If that fails, allow owner to edit/delete
+        if not is_safe_method(request) and is_owner(request, obj):
+            return True
+        return False
+
+# ----------------------------------------------------------------------
+# Choose your default permission class
+# ----------------------------------------------------------------------
+{{ app_name }}Permission = {{ app_name }}DefaultPermission

@@ -1,0 +1,109 @@
+# ViewSet templates
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
+from django.core.cache import cache
+from ..models import {{ model_name }}
+from ..serializers import (
+    {{ model_list_serializers }},
+    {{ model_retrieve_serializers }},
+    {{ model_write_serializers }}
+)
+from ..utilities.importbase import MyPageNumberPagination, {{ app_name }}Permission
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+class {{ viewset_name }}(viewsets.ModelViewSet):
+    """
+    ViewSet for {{ model_name }}.
+    
+    Provides CRUD operations with:
+    - Custom pagination (page/size or limit/offset)
+    - {{ app_name }}Permission (configurable permissions)
+    - Filtering, searching, ordering
+    - Different serializers for list, retrieve, and write actions
+    """
+    queryset = {{ model_name }}.objects.all()
+    serializer_class = {{ model_list_serializers }}
+    pagination_class = MyPageNumberPagination
+    permission_classes = [{{ app_name }}Permission]
+    authentication_classes = [JWTAuthentication]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = '__all__'
+    search_fields = []   # ← add fields like ['name', 'description']
+    ordering_fields = '__all__'
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'list':
+            return {{ model_list_serializers }}
+        if self.action == 'retrieve':
+            return {{ model_retrieve_serializers }}
+        return {{ model_write_serializers }}
+
+    # ----------------------------------------------------------------------
+    # OPTIONAL: Custom actions using @action decorator (uncomment to use)
+    # ----------------------------------------------------------------------
+    # @action(detail=True, methods=['post'])
+    # def custom_action(self, request, pk=None):
+    #     obj = self.get_object()
+    #     # your custom logic here
+    #     return Response({'status': 'ok'})
+    #
+    # @action(detail=False, methods=['get'])
+    # def custom_list_action(self, request):
+    #     # operate on entire collection
+    #     queryset = self.filter_queryset(self.get_queryset())
+    #     serializer = self.get_serializer(queryset, many=True)
+    #     return Response(serializer.data)
+
+    # ----------------------------------------------------------------------
+    # OPTIONAL: Override queryset per action (uncomment to customise)
+    # ----------------------------------------------------------------------
+    # def get_queryset(self):
+    #     if self.action == 'list':
+    #         return {{ model_name }}.objects.filter(is_active=True)
+    #     return super().get_queryset()
+
+    # ----------------------------------------------------------------------
+    # OPTIONAL: Caching examples (uncomment to enable)
+    # ----------------------------------------------------------------------
+    # 1. Cache list response for 5 minutes (vary by query params)
+    # @method_decorator(cache_page(60 * 5))
+    # @method_decorator(vary_on_headers('Authorization'))
+    # def list(self, request, *args, **kwargs):
+    #     return super().list(request, *args, **kwargs)
+
+    # 2. Cache retrieve for 15 minutes
+    # @method_decorator(cache_page(60 * 15))
+    # def retrieve(self, request, *args, **kwargs):
+    #     return super().retrieve(request, *args, **kwargs)
+
+    # 3. Low‑level manual caching (in get_queryset)
+    # def get_queryset(self):
+    #     cache_key = f'{{ model_name }}_queryset_{self.action}'
+    #     cached_qs = cache.get(cache_key)
+    #     if cached_qs is not None:
+    #         return cached_qs
+    #     qs = super().get_queryset()
+    #     cache.set(cache_key, qs, 60 * 10)
+    #     return qs
+
+    # 4. Invalidate cache on write operations
+    # def perform_create(self, serializer):
+    #     super().perform_create(serializer)
+    #     cache.delete('{{ model_name }}_queryset_list')
+    #
+    # def perform_update(self, serializer):
+    #     super().perform_update(serializer)
+    #     cache.delete('{{ model_name }}_queryset_list')
+    #     cache.delete(f'{{ model_name }}_object_{serializer.instance.id}')
+    #
+    # def perform_destroy(self, instance):
+    #     cache.delete('{{ model_name }}_queryset_list')
+    #     cache.delete(f'{{ model_name }}_object_{instance.id}')
+    #     super().perform_destroy(instance)
