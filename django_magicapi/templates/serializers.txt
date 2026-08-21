@@ -1,4 +1,3 @@
-# Serializer templates
 from rest_framework import serializers
 from ..models import {{ model_name }}
 

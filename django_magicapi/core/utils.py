@@ -5,23 +5,16 @@ from django.apps import apps
 def get_project_urls_path():
     """
     Return the absolute path to the main urls.py of the Django project.
-    Assumes the current working directory is the project root (where manage.py lives).
+    Uses settings.ROOT_URLCONF to locate the file safely.
     """
-    cwd = os.getcwd()
-    # Try to find manage.py
-    if not os.path.exists(os.path.join(cwd, 'manage.py')):
-        raise RuntimeError("manage.py not found in current directory. Are you in the project root?")
-    # Find the project module name (the directory containing settings.py)
-    for item in os.listdir(cwd):
-        if item.endswith('.py'):
-            continue
-        potential_settings = os.path.join(cwd, item, 'settings.py')
-        if os.path.exists(potential_settings):
-            project_name = item
-            break
-    else:
-        raise RuntimeError("Could not locate settings.py in any subdirectory.")
-    return os.path.join(cwd, project_name, 'urls.py')
+    from django.conf import settings
+    import importlib
+
+    try:
+        url_module = importlib.import_module(settings.ROOT_URLCONF)
+        return os.path.abspath(url_module.__file__)
+    except Exception as e:
+        raise RuntimeError(f"Could not locate project urls.py using ROOT_URLCONF: {e}")
 
 def get_custom_apps():
     """

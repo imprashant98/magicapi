@@ -1,4 +1,3 @@
-# Base import template
 from rest_framework import viewsets
 from ..utilities.pagination import MyPageNumberPagination
 from ..utilities.permissions import {{ app_name }}Permission

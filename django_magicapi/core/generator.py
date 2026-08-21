@@ -23,9 +23,8 @@ class ApiGenerator:
 
     def clean(self):
         """
-        Delete all generated files that were created by django-magicapi.
-        Scans the app directory for files containing the magic marker.
-        If `force` is True, deletes even without marker (dangerous).
+        Delete all generated folders and files created by django-magicapi.
+        Specifically removes serializers/, viewsets/, routers/, and utilities/.
         Also removes __pycache__ folders and .pyc files.
         """
         app_dir = os.path.join(os.getcwd(), self.app_name)
@@ -33,69 +32,28 @@ class ApiGenerator:
             print(f"App directory {app_dir} not found – skipping file deletion.")
             return
 
-        # 1. Delete old monolithic files (from earlier versions)
+        # 1. Delete generated subdirectories entirely
+        generated_folders = ['serializers', 'viewsets', 'routers', 'utilities']
+        for folder in generated_folders:
+            folder_path = os.path.join(app_dir, folder)
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+                print(f"Removed folder: {folder_path}")
+
+        # 2. Delete old monolithic files (from earlier versions)
         for old_file in ['serializers.py', 'viewsets.py']:
             full_path = os.path.join(app_dir, old_file)
             if os.path.exists(full_path):
-                self._delete_if_marked(full_path)
+                os.remove(full_path)
+                print(f"Removed old file: {full_path}")
 
-        # 2. Delete utility files
-        for util in ['permissions.py', 'pagination.py', 'importbase.py']:
-            full_path = os.path.join(app_dir, 'utilities', util)
-            if os.path.exists(full_path):
-                self._delete_if_marked(full_path)
-
-        # 3. Delete routers/routers.py
-        routers_path = os.path.join(app_dir, 'routers', 'routers.py')
-        if os.path.exists(routers_path):
-            self._delete_if_marked(routers_path)
-
-        # 4. Delete per‑model files in serializers/ and viewsets/
-        for subfolder in ['serializers', 'viewsets']:
-            folder_path = os.path.join(app_dir, subfolder)
-            if not os.path.exists(folder_path):
-                continue
-            for filename in os.listdir(folder_path):
-                if filename == '__init__.py':
-                    continue
-                if filename.endswith('.py'):
-                    file_path = os.path.join(folder_path, filename)
-                    self._delete_if_marked(file_path)
-            # Remove the folder if it becomes empty (or only __init__.py remains)
-            remaining = [f for f in os.listdir(folder_path) if f != '__init__.py']
-            if not remaining:
-                shutil.rmtree(folder_path)
-                print(f"Removed empty folder: {folder_path}")
-
-        # 5. Remove empty utilities folder
-        utils_dir = os.path.join(app_dir, 'utilities')
-        if os.path.exists(utils_dir) and not os.listdir(utils_dir):
-            os.rmdir(utils_dir)
-            print(f"Removed empty folder: {utils_dir}")
-
-        # 6. Clean admin.py markers (keep the file itself)
+        # 3. Clean admin.py markers (keep the file itself)
         admin_path = os.path.join(app_dir, 'admin.py')
         if os.path.exists(admin_path):
             self._clean_admin_markers(admin_path)
 
-        # 7. Remove __pycache__ and .pyc files
+        # 4. Remove __pycache__ and .pyc files
         self._clean_pycache(app_dir)
-
-    def _delete_if_marked(self, path):
-        """Delete file if it has the magic marker or force is True."""
-        should_delete = False
-        if self.force:
-            should_delete = True
-        else:
-            with open(path, 'r') as f:
-                first_line = f.readline()
-            if first_line.startswith('# DJANGO_MAGICAPI_GENERATED'):
-                should_delete = True
-        if should_delete:
-            os.remove(path)
-            print(f"Removed: {path}")
-        else:
-            print(f"Skip (no marker or --force): {path}")
 
     def _clean_admin_markers(self, admin_path):
         """Remove all DJANGO_MAGICAPI_ADMIN_START/END blocks from admin.py."""

@@ -1,34 +1,12 @@
-# DjangoRestFramework permissions template
-"""
-Advanced permission classes for {{ app_name }}.
-
-This file provides:
-- A configurable object‑level owner permission (works with any "owner" field name)
-- Integration with Django's standard `django.contrib.auth` permissions
-- Optional role‑based permission levels via a custom User method
-- All permissions are composable and can be mixed into your viewset
-
-To use:
-1. Set `OWNER_FIELD` below to the field name on your model that stores the owner (default 'user').
-2. If you want role‑based levels, define a method `get_permission_level()` on your User model
-   that returns one of: 'admin', 'editor', 'viewer' (or whatever you need).
-3. In your viewset, set `permission_classes = [{{ app_name }}ModelPermissions]`
-"""
-
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-# ----------------------------------------------------------------------
-# Configuration – adjust these to match your project
-# ----------------------------------------------------------------------
-OWNER_FIELD = 'user'                     # field name that links to the owner (User)
-USE_ROLES = False                        # set True if you have user.role or user.get_permission_level()
-ROLE_ADMIN_LEVEL = ['admin', 'superuser']  # roles that can do anything
-ROLE_EDITOR_LEVEL = ['editor']           # roles that can modify but not delete
-ROLE_VIEWER_LEVEL = ['viewer']           # roles that can only view
+OWNER_FIELD = 'user'
+USE_ROLES = False
+ROLE_ADMIN_LEVEL = ['admin', 'superuser']
+ROLE_EDITOR_LEVEL = ['editor']
+ROLE_VIEWER_LEVEL = ['viewer']
 
-# ----------------------------------------------------------------------
-# Helper functions (safe to use in any permission class)
-# ----------------------------------------------------------------------
+
 def is_authenticated(request):
     return bool(request.user and request.user.is_authenticated)
 
@@ -58,9 +36,6 @@ def has_role(request, allowed_roles):
     # Fallback: is_superuser counts as admin
     return request.user.is_superuser and 'admin' in allowed_roles
 
-# ----------------------------------------------------------------------
-# Model permissions using Django's built‑in system (recommended)
-# ----------------------------------------------------------------------
 class {{ app_name }}DjangoModelPermissions(BasePermission):
     """
     Uses Django's standard 'app_label.view_model', 'add_model', etc.
@@ -115,9 +90,6 @@ class {{ app_name }}DjangoModelPermissions(BasePermission):
         # Otherwise fall back to Django permissions
         return self.has_permission(request, view)
 
-# ----------------------------------------------------------------------
-# Lightweight owner‑only permission (no Django perms)
-# ----------------------------------------------------------------------
 class {{ app_name }}OwnerOnlyPermission(BasePermission):
     """
     Only the owner of an object may view or modify it.
@@ -133,9 +105,6 @@ class {{ app_name }}OwnerOnlyPermission(BasePermission):
         # Modify/delete only owner
         return is_owner(request, obj)
 
-# ----------------------------------------------------------------------
-# Role‑based permission (no object ownership, just global roles)
-# ----------------------------------------------------------------------
 class {{ app_name }}RolePermission(BasePermission):
     """Global permission based on user role (no object level)."""
     def has_permission(self, request, view):
@@ -147,9 +116,6 @@ class {{ app_name }}RolePermission(BasePermission):
         # Write operations require editor or admin role
         return has_role(request, ROLE_EDITOR_LEVEL + ROLE_ADMIN_LEVEL)
 
-# ----------------------------------------------------------------------
-# Default permission class – mix of Django perms + owner fallback
-# ----------------------------------------------------------------------
 class {{ app_name }}DefaultPermission({{ app_name }}DjangoModelPermissions):
     """
     Use Django model permissions, but also allow object owners to edit their own items
@@ -164,7 +130,4 @@ class {{ app_name }}DefaultPermission({{ app_name }}DjangoModelPermissions):
             return True
         return False
 
-# ----------------------------------------------------------------------
-# Choose your default permission class
-# ----------------------------------------------------------------------
 {{ app_name }}Permission = {{ app_name }}DefaultPermission

@@ -8,7 +8,7 @@ except FileNotFoundError:
 
 setup(
     name='django-magicapi',
-    version='0.1.1',
+    version='0.2.0',
     author='Prashant Karna',
     author_email='prashantkarna21@gmail.com',
     description='Automatically generate DRF API components for Django apps',
